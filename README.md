@@ -1,5 +1,15 @@
 # fleet-bridge ⚒️
 
+
+## Meta
+
+**Domain:** agent-coordination
+**Depends on:** —
+**Depended by:** —
+**Implements:** Sign-pattern broadcast and bridge coupling for fleet federation — the 1-bit mira...
+**Related:** —
+
+
 **Sign-pattern broadcast and bridge coupling for fleet federation — the 1-bit miracle.**
 
 Two fleets. One bit per agent. Synchronization emerges.
