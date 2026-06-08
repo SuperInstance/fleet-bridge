@@ -1,0 +1,30 @@
+{
+  "name": "@superinstance/fleet-bridge",
+  "version": "1.0.0",
+  "description": "A2A dual-transport message bridge for the SuperInstance cognitive fleet — unifies I2I bottle drops and t-minus WebSocket cues under a single routing layer",
+  "main": "src/index.js",
+  "bin": {
+    "fleet-bridge": "./src/fleet-bridge-cli.js"
+  },
+  "scripts": {
+    "start": "node src/fleet-bridge-cli.js",
+    "test": "echo \"See integration-tests repo for test suite\" && exit 0"
+  },
+  "keywords": [
+    "superinstance",
+    "fleet",
+    "a2a",
+    "agent-to-agent",
+    "bridge",
+    "i2i",
+    "t-minus",
+    "cognitive-architecture"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "license": "MIT"
+}
