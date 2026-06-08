@@ -1,126 +1,123 @@
-# fleet-bridge ⚒️
+# 🌉 Fleet Bridge
 
+**A2A dual-transport message bridge for the SuperInstance cognitive fleet**
 
-## Meta
+[![Node](https://img.shields.io/badge/node-%3E%3D18-339933?logo=node.js)](https://nodejs.org)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![SuperInstance](https://img.shields.io/badge/SuperInstance-Fleet-purple)](https://github.com/SuperInstance)
 
-**Domain:** agent-coordination
-**Depends on:** —
-**Depended by:** —
-**Implements:** Sign-pattern broadcast and bridge coupling for fleet federation — the 1-bit mira...
-**Related:** —
+---
 
+Unified message routing between **I2I bottle drops** (file-based inter-agent messaging) and **t-minus WebSocket cues** (real-time temporal dispatch). Fleet Bridge watches both channels, maintains a route table, and can forward messages across transports — making it the central nervous system of the fleet.
 
-**Sign-pattern broadcast and bridge coupling for fleet federation — the 1-bit miracle.**
+---
 
-Two fleets. One bit per agent. Synchronization emerges.
+## Quick Start
 
-## The 1-Bit Miracle
+```bash
+git clone https://github.com/SuperInstance/fleet-bridge
+cd fleet-bridge
+npm install
+npm start
+```
 
-In multi-agent systems, synchronizing distributed fleets normally requires exchanging high-dimensional state vectors — expensive, bandwidth-intensive, fragile. 
+## What It Solves
 
-**fleet-bridge** shows it doesn't need to be. By broadcasting only the **sign** of each agent's mean state — a single bit per agent — fleets can synchronize with measurable cross-correlation.
+Distributed cognitive agents communicate through different transport mechanisms. Some agents use the I2I bottle protocol (async, file-based, durable) while others use t-minus WebSocket cues (real-time, temporal). Fleet Bridge:
 
-| Bit | Content | Cost |
-|-----|---------|------|
-| 1   | Sign of agent's mean state (+1 or -1) | 1 bit |
-| All | Full state vector | d×32 bits |
+- **Unifies** both transports under a single routing layer
+- **Forwards** messages across transports when agents live on different channels
+- **Health-monitors** all connections with configurable thresholds
+- **Loads** default routes from a declarative route table
 
-## Key Discoveries
+## Architecture
 
-From experiments (night of May 8-9, 2026):
+```
+┌─────────────────────────────────────────────────────┐
+│                    Fleet Bridge                      │
+├─────────────────────────────────────────────────────┤
+│                                                      │
+│  ┌─────────────────────┐    ┌─────────────────────┐  │
+│  │  I2I Bottle         │    │  t-minus WebSocket   │  │
+│  │  Transport          │    │  Transport           │  │
+│  │  (file-based)       │    │  (real-time)         │  │
+│  └────────┬────────────┘    └──────────┬──────────┘  │
+│           │                             │            │
+│           └──────────┬──────────────────┘            │
+│                      │                               │
+│              ┌───────┴────────┐                      │
+│              │   Route Table  │                      │
+│              │   (declarative)│                      │
+│              └───────┬────────┘                      │
+│                      │                               │
+│              ┌───────┴────────┐                      │
+│              │ Health Monitor │                      │
+│              └────────────────┘                      │
+└─────────────────────────────────────────────────────┘
+```
 
-1. **Alignment is indestructible** — After 10× perturbation, restores in 8 steps
-2. **Pruning creates** — 8→4 agents yields 9% correlation gain
-3. **Phase transition** — 0→0.912, all-or-nothing alignment
-4. **1-bit channel works** — Measurable cross-fleet correlation from sign-only broadcast
-5. **Same-question agents** — 1.05× stronger correlation for same-initial agents
-6. **Bearing-rate collision detection** — Agent heading awareness works
+### Module Map
+
+```
+src/
+├── index.js              Entry point — exports all components
+├── fleet-bridge.js       FleetBridge — unified router + forwarder
+├── i2i-transport.js      I2I bottle transport (file-based)
+├── tminus-transport.js   t-minus WebSocket transport
+├── route-table.js        Declarative route table
+├── health-monitor.js     Connection health monitoring
+└── fleet-bridge-cli.js   CLI runner
+```
+
+## CLI Usage
+
+```bash
+# Start the bridge with default config
+npx fleet-bridge
+
+# With custom vessel directory
+npx fleet-bridge --vessel-dir /path/to/vessels
+
+# With custom WebSocket URL
+npx fleet-bridge --ws-url ws://localhost:8765/ws
+```
 
 ## API
 
-```rust
-use fleet_bridge::{Bridge, SignPattern, BridgeState};
+```js
+const { FleetBridge } = require('fleet-bridge');
 
-// Create a bridge to couple a fleet with a foreign fleet
-let mut bridge = Bridge::new("fleet-b", 0.3, 0.2);
-//                        fleet_id ^       ^     ^
-//                               internal  bridge
-//                               coupling  coupling
+const bridge = new FleetBridge({
+  vesselDir: '/path/to/i2i-vessel',
+  wsUrl: 'ws://localhost:8765/ws',
+  agentId: 'my-bridge',
+  pollIntervalMs: 5000,
+  forwarding: true
+});
 
-// Broadcast: extract 1-bit signs from agent states
-let signs = Bridge::broadcast_signs(&fleet);
+await bridge.init();
+await bridge.start();
 
-// Receive: convert foreign signs to influence vector
-let influence = bridge.receive_foreign_signs(&foreign_signs);
+// Status
+const status = bridge.status();
+console.log(status);
 
-// Measure cross-correlation of signs
-let corr = Bridge::measure_correlation(&fleet_a, &[signs_b]);
-
-// Step: evolve fleet with both internal and bridge coupling
-bridge.step(&mut fleet, &foreign_signs);
+// Clean shutdown
+await bridge.shutdown();
 ```
 
-## Types
+## Related Projects
 
-### `SignPattern`
-A compact representation of fleet state — one `i8` (+1 or -1) per agent.
-
-| Method | Description |
-|--------|-------------|
-| `new(signs: Vec<i8>)` | Create from sign vector (panics if not ±1) |
-| `len()` | Number of agents |
-| `get(i)` | Sign at index `i` |
-| `agreement(&other)` | Fraction of matching signs (Hamming agreement) |
-| `invert()` | Flip all signs |
-| `zeros(n)` | All +1 pattern (useful for testing) |
-
-### `Bridge`
-Couples this fleet to a foreign fleet via sign-only communication.
-
-| Method | Description |
-|--------|-------------|
-| `new(fleet_id, internal_coupling, bridge_coupling)` | Create bridge |
-| `broadcast_signs(agent_states) -> SignPattern` | Extract 1-bit signs |
-| `receive_foreign_signs(pattern) -> Vec<f64>` | Convert signs to influence |
-| `measure_correlation(internal, foreign) -> f64` | Cross-correlation in [-1, 1] |
-| `is_healthy(corr) -> bool` | True if `corr > 0.5` |
-| `step(states, foreign_signs)` | One integration step |
-
-### `BridgeState`
-Runtime state tracking.
-
-| Field | Description |
-|-------|-------------|
-| `internal_energy` | Internal coupling energy |
-| `bridge_energy` | Bridge coupling energy |
-| `cross_correlation_history` | Last N correlation measurements |
-
-## Constants (from empirical experiments)
-
-| Parameter | Value | Effect |
-|-----------|-------|--------|
-| Internal coupling | 0.1–0.5 | Fleet cohesion |
-| Bridge coupling | 0.20 | ~0.60 cross-corr, ~0.90 internal |
-| Healthy threshold | >0.5 | Cross-correlation ≥ 0.5 |
-| Sign channel | 1 bit/agent | Sign of mean state |
-
-## Running Tests
-
-```bash
-cargo test
-```
-
-24+ tests covering:
-- Sign pattern creation, agreement, inversion
-- Sign broadcasting (positive, negative, mixed, zero)
-- Bridge coupling influence
-- Cross-correlation measurement
-- Phase transition dynamics
-- Alignment indestructibility
-- Pruning effects
-- Same-question correlation boost
-- Empty fleet edge cases
+- [⏱️ tminus-dispatcher](https://github.com/SuperInstance/tminus-dispatcher) — Temporal heartbeat for agent coordination
+- [🔌 tminus-client](https://github.com/SuperInstance/tminus-client) — Client SDK + CLI
+- [🧮 constraint-tminus-bridge](https://github.com/SuperInstance/constraint-tminus-bridge) — Cognitive constraint networks
+- [🧠 composite-headspace](https://github.com/SuperInstance/composite-headspace) — Dual-shell parallel reasoning
+- [📡 i2i-bottle-agent](https://github.com/SuperInstance/i2i-bottle-agent) — Inter-agent bottle protocol
 
 ## License
 
-MIT — do what you want. SuperInstance 🚀
+MIT
+
+---
+
+*Part of the [SuperInstance Fleet](https://github.com/SuperInstance) — The crab inherits the shell. The forge shapes the steel.*
